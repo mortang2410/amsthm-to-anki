@@ -11,16 +11,37 @@
 module Main where
 
 import ClassyPrelude hiding ((<>), lift)
-import safe Control.Eff
+import safe Control.Eff ( run )
 import safe Control.Eff.Lift
 import safe Control.Eff.Writer.Strict
 import safe Data.Data (Data)
 import safe Data.OpenUnion (SetMember)
 import safe Data.Typeable (Typeable)
 import safe Options.Applicative
+    ( argument,
+      auto,
+      fullDesc,
+      header,
+      help,
+      info,
+      long,
+      metavar,
+      option,
+      progDesc,
+      str,
+      switch,
+      value,
+      execParser,
+      helper,
+      Parser )
 import Text.LaTeX (renderFile)
 import Text.LaTeX.Base.Parser (parseLaTeX)
 import Text.LaTeX.Base.Pretty (prettyLaTeX)
+
+import Data.Text.IO (hPutStrLn)
+import Data.Monoid
+import qualified Data.ByteString.Char8 as B
+import qualified Data.Text.Encoding as T
 
 -- My modules
 import Extract
@@ -41,7 +62,7 @@ data Options where
 amsthmToAnki :: Options -> IO ()
 amsthmToAnki (Options inputPath outputPath format pretty) = do
   content <- readFile inputPath
-  case (parseLaTeX content) of
+  case parseLaTeX (T.decodeUtf8 content) of
     Right srcTeX ->
       let (logs :: [Log], (errs :: [Error], tex)) =
             run (runMonoidWriter (textToNotecards srcTeX))
@@ -61,7 +82,7 @@ amsthmToAnki (Options inputPath outputPath format pretty) = do
         if pretty
         then do
           putStrLn "___ pretty +++"
-          writeFile outputPath (prettyLaTeX tex)
+          writeFile outputPath  ( B.pack (prettyLaTeX tex) :: ByteString )
         else do
           putStrLn "___ not pretty +++"
           renderFile outputPath tex
